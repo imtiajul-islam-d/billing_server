@@ -1,5 +1,5 @@
 const express = require("express");
-const { MongoClient, ServerApiVersion } = require("mongodb");
+const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 const cors = require("cors");
 require("dotenv").config();
 const jwt = require("jsonwebtoken");
@@ -22,6 +22,77 @@ const client = new MongoClient(uri, {
 async function run() {
   try {
     const userCollection = client.db("billing").collection("user");
+    const billsCollection = client.db("billing").collection("bills");
+    // register an user
+    app.post("/api/registration", async (req, res) => {
+      const user = req.body;
+      // check is the user already available or not
+      const email = req.body.email;
+      const checkQuery = { email: email };
+      const userRegistered = await userCollection.find(checkQuery).toArray();
+      if (!userRegistered.length) {
+        const result = await userCollection.insertOne(user);
+        res.send({
+          status: "success",
+          data: result,
+        });
+      }else{
+        res.send({
+            status: "failed",
+            message: "You are already registered!!"
+        })
+      }
+    });
+    // get all bill
+    app.get("/api/billing-list", async (req, res) => {
+      const page = parseInt(req.query.page);
+      const size = 10;
+      const skipIndex = parseInt(page * size);
+      const query = {};
+      const cursor = billsCollection.find(query).sort({ time: -1 });
+      const bills = await cursor.skip(skipIndex).limit(size).toArray();
+      const count = await billsCollection.estimatedDocumentCount();
+      res.send({
+        status: "success",
+        count,
+        bills,
+      });
+    });
+    // add a bill
+    app.post("/api/add-billing", async (req, res) => {
+      const bill = req.body;
+      const result = await billsCollection.insertOne(bill);
+      res.send({
+        status: "success",
+        data: result,
+      });
+    });
+    // update a bill
+    app.patch("/api/update-billing/:id", async (req, res) => {
+      const id = req.params.id;
+      const update = req.body;
+      const filter = { _id: ObjectId(id) };
+      const updatedDocument = {
+        $set: {
+          bills: update,
+        },
+      };
+      const result = await billsCollection.updateOne(filter, updatedDocument);
+      res.send({
+        status: "success",
+        data: result,
+      });
+    });
+    //   delete a bill
+    app.delete("/api/delete-billing/:id", async (req, res) => {
+      const id = req.params.id;
+      const filter = { _id: ObjectId(id) };
+      const result = await billsCollection.deleteOne(filter);
+      res.send({
+        status: "success",
+        data: result,
+      });
+    });
   } finally {
   }
 }
