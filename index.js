@@ -36,10 +36,27 @@ async function run() {
           status: "success",
           data: result,
         });
+      } else {
+        res.send({
+          status: "failed",
+          message: "You are already registered!!",
+        });
+      }
+    });
+    // get login info
+    app.get("/api/login", async (req, res) => {
+      const email = req.body.email;
+      const query = { email: email };
+      const result = await userCollection.find(query).toArray();
+      if (result.length) {
+        res.send({
+          status: "success",
+          data: result,
+        });
       }else{
         res.send({
             status: "failed",
-            message: "You are already registered!!"
+            message: "You are not registered! Please register..."
         })
       }
     });
@@ -93,6 +110,9 @@ async function run() {
         data: result,
       });
     });
+    // get search result
+    
+
   } finally {
   }
 }
