@@ -2,16 +2,34 @@ const express = require("express");
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 const cors = require("cors");
 require("dotenv").config();
-const jwt = require("jsonwebtoken");
+// const jwt = require("jsonwebtoken");
 const port = process.env.PORT || 5000;
 const app = express();
 
 // middleware
 app.use(cors());
 app.use(express.json());
+// verify jwt
+// function verifyJWT(req, res, next) {
+//   const authHeader = req.headers.authorization;
+//   if (!authHeader) {
+//     return res.status(401).send({ message: "unauthorized access" });
+//   }
+//   const token = authHeader.split(" ")[1];
+//   jwt.verify(token, process.env.ACCESS_TOKEN, function (err, decoded) {
+//     if (err) {
+//       console.log(err);
+//       return res.status(403).send({ message: "forbidden access" });
+//     }
+//     req.decoded = decoded;
+//     next();
+//   });
+// }
 // middleware end
 // mongodb start
-const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.ibovumw.mongodb.net/?retryWrites=true&w=majority`;
+// const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.ibovumw.mongodb.net/?retryWrites=true&w=majority`;
+// const uri = "mongodb://localhost:27017"
+const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.xbnuhk5.mongodb.net/?retryWrites=true&w=majority`;
 const client = new MongoClient(uri, {
   useNewUrlParser: true,
   useUnifiedTopology: true,
@@ -23,6 +41,25 @@ async function run() {
   try {
     const userCollection = client.db("billing").collection("user");
     const billsCollection = client.db("billing").collection("bills");
+
+    // jwt
+    // app.get("/jwt", async (req, res) => {
+    //   // take the email address from user
+    //   const email = req.query.email;
+    //   // check the user, is it in our database or not
+    //   // make a query to find the user in our database
+    //   const quey = { email: email };
+    //   const user = await userCollection.findOne(quey);
+    //   // if user found then, cook a token for the user, demo is in the below
+    //   if (user) {
+    //     const token = jwt.sign({ email }, process.env.ACCESS_TOKEN, {
+    //       expiresIn: "24h",
+    //     });
+    //     return res.send({ accessToken: token });
+    //   }
+    //   // if no user found, send him/ her the status '403' with a blank access token
+    //   res.status(403).send({ accessToken: "" });
+    // });
     // register an user
     app.post("/api/registration", async (req, res) => {
       const user = req.body;
@@ -44,21 +81,45 @@ async function run() {
       }
     });
     // get login info
-    app.get("/api/login", async (req, res) => {
+    app.post("/api/login", async (req, res) => {
       const email = req.body.email;
+      const password = parseInt(req.body.password);
+      console.log(password);
       const query = { email: email };
       const result = await userCollection.find(query).toArray();
+      const dbPass = parseInt(result[0].password);
+      console.log(dbPass);
       if (result.length) {
-        res.send({
-          status: "success",
-          data: result,
-        });
-      }else{
-        res.send({
+        if (dbPass === password) {
+          res.send({
+            status: "success",
+            data: result,
+          });
+        } else {
+          res.send({
             status: "failed",
-            message: "You are not registered! Please register..."
-        })
+            message: "Wrong password",
+          });
+        }
+      } else {
+        res.send({
+          status: "failed",
+          message: "You are not registered! Please register...",
+        });
       }
+    });
+    // get all paid amount
+    app.get("/api/billing-list/amount", async (req, res) => {
+      const query = {};
+      const result = await billsCollection.find(query).toArray();
+      // let total = 0;
+      // const re = result.map(item => total + item.bills.amount)
+      // console.log(re)
+      // console.log(result.bills);
+      res.send({
+        status: "success",
+        data: result,
+      });
     });
     // get all bill
     app.get("/api/billing-list", async (req, res) => {
@@ -111,8 +172,6 @@ async function run() {
       });
     });
     // get search result
-    
-
   } finally {
   }
 }
